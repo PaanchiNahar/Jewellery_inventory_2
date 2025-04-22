@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "./node_modules/@prisma/client"
 }
 
 datasource db {
@@ -13,52 +14,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Client {
-  id      Int     @id @default(autoincrement())
-  name    String
-  phone   String  @unique
-  email   String
-  bills   Bill[]
+model Bill {
+  id            Int         @id @default(autoincrement())
+  clientId      Int
+  totalAmount   Float
+  subtotal      Float
+  tax           Float
+  paymentMethod String
+  createdAt     DateTime    @default(now())
+  client        Client      @relation(fields: [clientId], references: [id])
+  billItems     BillItem[]
+
+  @@index([clientId], map: "Bill_clientId_fkey")
 }
 
-model Ornament {
-  id            Int     @id @default(autoincrement())
-  ornamentId    String  @unique
-  type          String
-  merchantCode  String
-  weight        Float
-  costPrice     Float
-  purity        String
-  qrCode        String?    // PNG stored as binary (blob)
-  isSold        Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  billItems     BillItem[]
-  merchant      Merchant  @relation(fields: [merchantCode], references: [merchantCode])
+model BillItem {
+  id           Int      @id @default(autoincrement())
+  billId       Int
+  ornamentId   String
+  sellingPrice Float
+  bill         Bill     @relation(fields: [billId], references: [id], map: "BillItem_billId_fkey")
+  ornament     Ornament @relation(fields: [ornamentId], references: [ornamentId], map: "BillItem_ornamentId_fkey")
+
+  @@index([billId], map: "BillItem_billId_fkey")
+  @@index([ornamentId], map: "BillItem_ornamentId_fkey")
+}
+
+model Client {
+  id    Int    @id @default(autoincrement())
+  name  String
+  phone String @unique(map: "Client_phone_key")
+  email String? // Make email nullable
+  bills Bill[]
 }
 
 model Merchant {
   merchantCode String     @id
   name         String
-  phone        String     @unique
-  createdAt DateTime @default(now())
+  phone        String     @unique(map: "Merchant_phone_key")
   ornaments    Ornament[]
 }
 
-
-model Bill {
-  id           Int         @id @default(autoincrement())
-  clientId     Int
-  totalAmount  Float
-  createdAt    DateTime    @default(now())
-  client       Client      @relation(fields: [clientId], references: [id])
+model Ornament {
+  id           Int        @id @default(autoincrement())
+  ornamentId   String     @unique(map: "Ornament_ornamentId_key")
+  type         String
+  merchantCode String
+  weight       Float
+  costPrice    Float
+  purity       String
+  qrCode       String?
+  isSold       Boolean    @default(false)
+  soldAt       DateTime?  
+  soldPrice    Float?     
+  createdAt    DateTime   @default(now())
   billItems    BillItem[]
-}
+  merchant     Merchant   @relation(fields: [merchantCode], references: [merchantCode], map: "Ornament_merchantCode_fkey")
 
-model BillItem {
-  id           Int         @id @default(autoincrement())
-  billId       Int
-  ornamentId   String
-  sellingPrice Float
-  bill         Bill        @relation(fields: [billId], references: [id])
-  ornament     Ornament    @relation(fields: [ornamentId], references: [ornamentId])
+  @@index([merchantCode], map: "Ornament_merchantCode_fkey")
 }

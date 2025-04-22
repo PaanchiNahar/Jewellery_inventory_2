@@ -125,43 +125,31 @@ export async function fetchRecentSales() {
   }
 }
 
-// /lib/api.ts
-export async function addOrnament(ornamentData: any) {
-  const res = await fetch("/api/add-ornament", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(ornamentData),
-  });
+// Add ornament with proper type checking
+export async function addOrnament(ornament: {
+  type: string;
+  weight: number;
+  costPrice: number;
+  merchantCode: string;
+  purity: string;
+}) {
+  try {
+    const res = await fetch("/api/add-ornament", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(ornament),
+    });
 
-  return res.json(); // returns { success: true, ornamentId: "..." }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to add ornament");
+    return data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
 }
-
-// // Add ornament
-// export async function addOrnament(ornamentData: any) {
-//   try {
-//     // In a real app, this would send to the backend
-//     // const response = await fetch('/api/add-ornament', {
-//     //   method: 'POST',
-//     //   headers: {
-//     //     'Content-Type': 'application/json',
-//     //   },
-//     //   body: JSON.stringify(ornamentData),
-//     // })
-//     // const data = await response.json()
-//     // return data
-
-//     // Mock response for now
-//     return {
-//       success: true,
-//       ornamentId: ornamentData.ornamentId,
-//     }
-//   } catch (error) {
-//     console.error("API Error:", error)
-//     throw error
-//   }
-// }
 
 // Fetch stock data
 export async function fetchStock(filters: any) {
@@ -315,69 +303,36 @@ export async function generateBill(billData: any) {
 // Fetch sales history
 export async function fetchSalesHistory(filters: any) {
   try {
-    // In a real app, this would fetch from the backend with filters
-    // const queryParams = new URLSearchParams()
-    // if (filters.date) queryParams.append('date', filters.date)
-    // if (filters.paymentMethod) queryParams.append('paymentMethod', filters.paymentMethod)
-    // if (filters.search) queryParams.append('search', filters.search)
+    const queryParams = new URLSearchParams();
+    if (filters.date) queryParams.append('date', filters.date);
+    if (filters.paymentMethod) queryParams.append('paymentMethod', filters.paymentMethod);
+    if (filters.search) queryParams.append('search', filters.search);
 
-    // const response = await fetch(`/api/sales?${queryParams.toString()}`)
-    // const data = await response.json()
-    // return data
+    const response = await fetch(`/api/sales?${queryParams}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch sales history');
+    }
 
-    // Mock data for now
-    const mockData = [
-      {
-        id: 1,
-        billId: "BILL001",
-        clientName: "Priya Sharma",
-        clientPhone: "9876543210",
-        date: "2023-04-15",
-        items: 3,
-        total: 42500,
-        paymentMethod: "cash",
-      },
-      {
-        id: 2,
-        billId: "BILL002",
-        clientName: "Rahul Patel",
-        clientPhone: "8765432109",
-        date: "2023-04-14",
-        items: 1,
-        total: 18950,
-        paymentMethod: "card",
-      },
-      {
-        id: 3,
-        billId: "BILL003",
-        clientName: "Ananya Singh",
-        clientPhone: "7654321098",
-        date: "2023-04-13",
-        items: 4,
-        total: 56200,
-        paymentMethod: "upi",
-      },
-    ];
-
-    // Apply filters
-    return mockData.filter((item) => {
-      let match = true;
-
-      if (filters.date && item.date !== filters.date) match = false;
-      if (filters.paymentMethod && item.paymentMethod !== filters.paymentMethod)
-        match = false;
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesSearch =
-          item.billId.toLowerCase().includes(searchLower) ||
-          item.clientName.toLowerCase().includes(searchLower);
-        if (!matchesSearch) match = false;
-      }
-
-      return match;
-    });
+    const data = await response.json();
+    return data.map((sale: any) => ({
+      id: sale.id,
+      billId: `BILL-${sale.id.toString().padStart(6, '0')}`,
+      clientName: sale.client.name,
+      clientPhone: sale.client.phone,
+      date: sale.createdAt,
+      items: sale.billItems.length,
+      total: sale.totalAmount,
+      paymentMethod: sale.paymentMethod,
+      itemDetails: sale.billItems.map((item: any) => ({
+        ornamentId: item.ornament.ornamentId,
+        type: item.ornament.type,
+        merchantName: item.ornament.merchant.name,
+        merchantCode: item.ornament.merchantCode,
+        sellingPrice: item.sellingPrice
+      }))
+    }));
   } catch (error) {
-    console.error("API Error:", error);
+    console.error('API Error:', error);
     throw error;
   }
 }
@@ -513,56 +468,11 @@ export async function fetchClientDetails(clientId: string) {
 }
 
 // Fetch merchants
-export async function fetchMerchants(searchTerm = "") {
+export async function fetchMerchants() {
   try {
-    // In a real app, this would fetch from the backend
-    // const response = await fetch(`/api/merchants?search=${encodeURIComponent(searchTerm)}`)
-    // const data = await response.json()
-    // return data
-
-    // Mock data for now
-    const mockData = [
-      {
-        id: 1,
-        name: "Rajesh Jewelers",
-        merchantCode: "MER001",
-        phone: "9876543210",
-        totalOrnaments: 45,
-        totalValue: 450000,
-        createdAt: "2023-01-10",
-      },
-      {
-        id: 2,
-        name: "Golden Creations",
-        merchantCode: "MER002",
-        phone: "8765432109",
-        totalOrnaments: 32,
-        totalValue: 320000,
-        createdAt: "2023-02-15",
-      },
-      {
-        id: 3,
-        name: "Sharma & Sons",
-        merchantCode: "MER003",
-        phone: "7654321098",
-        totalOrnaments: 28,
-        totalValue: 280000,
-        createdAt: "2023-03-20",
-      },
-    ];
-
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return mockData.filter(
-        (merchant) =>
-          merchant.name.toLowerCase().includes(searchLower) ||
-          merchant.merchantCode.toLowerCase().includes(searchLower) ||
-          merchant.phone.includes(searchTerm)
-      );
-    }
-
-    return mockData;
+    const response = await fetch('/api/merchant');
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("API Error:", error);
     throw error;
@@ -570,68 +480,31 @@ export async function fetchMerchants(searchTerm = "") {
 }
 
 // Add merchant
-export async function addMerchant(merchant: {
-  merchantCode: string;
-  name: string;
-  phone: string;
-}) {
-  const res = await fetch("/api/merchants", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(merchant),
-  });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to add merchant");
-  return data.merchant;
+export async function addMerchant(merchantData: any) {
+  try {
+    const response = await fetch('/api/merchant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(merchantData),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add merchant');
+    }
+    return data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
 }
 
+//
 // Fetch merchant details
-export async function fetchMerchantDetails(merchantId: string) {
+export async function fetchMerchantDetails(merchantCode: string) {
   try {
-    // In a real app, this would fetch from the backend
-    // const response = await fetch(`/api/merchants/${merchantId}`)
-    // const data = await response.json()
-    // return data
-
-    // Mock data for now
-    return {
-      id: Number.parseInt(merchantId),
-      name: "Rajesh Jewelers",
-      merchantCode: "MER001",
-      phone: "9876543210",
-      createdAt: "2023-01-10",
-      totalOrnaments: 45,
-      inStock: 30,
-      sold: 15,
-      totalValue: 450000,
-      ornaments: [
-        {
-          ornamentId: "R001",
-          type: "ring",
-          weight: 8.5,
-          purity: "22K",
-          costPrice: 42500,
-          status: "in_stock",
-        },
-        {
-          ornamentId: "N001",
-          type: "necklace",
-          weight: 15.2,
-          purity: "24K",
-          costPrice: 76000,
-          status: "in_stock",
-        },
-        {
-          ornamentId: "E001",
-          type: "earring",
-          weight: 4.8,
-          purity: "18K",
-          costPrice: 24000,
-          status: "sold",
-        },
-      ],
-    };
+    const response = await fetch(`/api/merchant?merchantCode=${merchantCode}`);
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("API Error:", error);
     throw error;

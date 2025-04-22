@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
+    "@prisma/client": "6.6.0",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-aspect-ratio": "^1.1.1",
@@ -43,10 +44,13 @@
     "cmdk": "1.0.4",
     "date-fns": "latest",
     "embla-carousel-react": "8.5.1",
+    "html5-qrcode": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
+    "mysql2": "latest",
     "next": "15.2.4",
     "next-themes": "^0.4.4",
+    "qrcode.react": "latest",
     "react": "^19",
     "react-day-picker": "8.10.1",
     "react-dom": "^19",
@@ -57,16 +61,14 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
-    "zod": "latest",
-    "qrcode.react": "latest",
-    "html5-qrcode": "latest",
-    "mysql2": "latest"
+    "zod": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",
+    "prisma": "6.6.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }

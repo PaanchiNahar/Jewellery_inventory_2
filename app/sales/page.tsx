@@ -213,28 +213,23 @@ export default function SalesPage() {
                 salesData.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.billId}</TableCell>
-                    <TableCell>{sale.date}</TableCell>
+                    <TableCell>{format(new Date(sale.date), "MMM d, yyyy")}</TableCell>
                     <TableCell>
-                      <div>
-                        <p>{sale.clientName}</p>
-                        <p className="text-xs text-muted-foreground">{sale.clientPhone}</p>
-                      </div>
+                      <div>{sale.clientName}</div>
+                      <div className="text-sm text-muted-foreground">{sale.clientPhone}</div>
                     </TableCell>
-                    <TableCell>{sale.items}</TableCell>
+                    <TableCell>
+                      <div>{sale.items} items</div>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={
-                          sale.paymentMethod === "cash"
-                            ? "bg-green-100 text-green-800"
-                            : sale.paymentMethod === "card"
-                              ? "bg-blue-100 text-blue-800"
-                              : sale.paymentMethod === "upi"
-                                ? "bg-purple-100 text-purple-800"
-                                : "bg-gray-100 text-gray-800"
-                        }
+                        className={`${sale.paymentMethod === "cash" ? "bg-green-100 text-green-800" : ""}
+                          ${sale.paymentMethod === "card" ? "bg-blue-100 text-blue-800" : ""}
+                          ${sale.paymentMethod === "upi" ? "bg-purple-100 text-purple-800" : ""}
+                          ${sale.paymentMethod === "bank" ? "bg-orange-100 text-orange-800" : ""}`}
                       >
-                        {sale.paymentMethod.charAt(0).toUpperCase() + sale.paymentMethod.slice(1)}
+                        {sale.paymentMethod.toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">₹{sale.total.toLocaleString()}</TableCell>

@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { QrCode, Trash2, UserPlus } from "lucide-react"
+import { QrCode, Trash2, UserPlus, Download } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,15 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { QrScanner } from "@/components/qr-scanner"
-import { scanQrCode, generateBill } from "@/lib/api"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const ORNAMENT_TYPES = [
+  { value: "ring", label: "Ring" },
+  { value: "necklace", label: "Necklace" },
+  { value: "bracelet", label: "Bracelet" },
+  { value: "earring", label: "Earring" },
+  { value: "pendant", label: "Pendant" },
+]
 
 export default function BillingPage() {
   const [client, setClient] = useState({ id: 0, name: "", phone: "" })
@@ -26,18 +34,27 @@ export default function BillingPage() {
   const [qrInput, setQrInput] = useState("")
   const [showClientDialog, setShowClientDialog] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
+  const [showTypeSelect, setShowTypeSelect] = useState(false)
+  const [selectedType, setSelectedType] = useState("")
+  const [typeItems, setTypeItems] = useState<any[]>([])
   const [paymentMethod, setPaymentMethod] = useState("cash")
   const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState("qr")
 
   // Function to handle QR code scanning
   const handleScanQR = async () => {
     if (qrInput.trim()) {
       try {
-        const response = await scanQrCode(qrInput)
+        const response = await fetch("/api/scan-item", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ qrCode: qrInput }),
+        })
+        const data = await response.json()
 
-        if (response.success && response.item) {
+        if (data.success && data.item) {
           // Check if item is already in the cart
-          if (scannedItems.some((item) => item.ornamentId === response.item.ornamentId)) {
+          if (scannedItems.some((item) => item.ornamentId === data.item.ornamentId)) {
             toast({
               title: "Item already added",
               description: "This item is already in your cart",
@@ -46,16 +63,16 @@ export default function BillingPage() {
             return
           }
 
-          setScannedItems([...scannedItems, response.item])
+          setScannedItems([...scannedItems, data.item])
           setQrInput("")
           toast({
             title: "Item added",
-            description: `${response.item.type} (${response.item.ornamentId}) added to cart`,
+            description: `${data.item.type} (${data.item.ornamentId}) added to cart`,
           })
         } else {
           toast({
             title: "Invalid QR code",
-            description: response.error || "Could not find item with this code",
+            description: data.error || "Could not find item with this code",
             variant: "destructive",
           })
         }
@@ -67,6 +84,35 @@ export default function BillingPage() {
           variant: "destructive",
         })
       }
+    }
+  }
+
+  // Function to handle type selection and fetch items
+  const handleTypeSelect = async (type: string) => {
+    try {
+      const response = await fetch("/api/scan-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      })
+      const data = await response.json()
+
+      if (data.success && data.items) {
+        setTypeItems(data.items)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch items of selected type",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching items:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch items",
+        variant: "destructive",
+      })
     }
   }
 
@@ -117,25 +163,33 @@ export default function BillingPage() {
     }
 
     try {
-      const response = await generateBill({
-        clientId: client.id,
-        clientName: client.name,
-        clientPhone: client.phone,
-        items: scannedItems.map((item) => ({
-          ornamentId: item.ornamentId,
-          sellingPrice: item.sellingPrice,
-        })),
-        paymentMethod,
-        subtotal: calculateSubtotal(),
-        tax: calculateTax(),
-        total: calculateTotal(),
+      const response = await fetch("/api/generate-bill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: client.name,
+          clientPhone: client.phone,
+          items: scannedItems.map((item) => ({
+            ornamentId: item.ornamentId,
+            sellingPrice: item.sellingPrice,
+          })),
+          subtotal: calculateSubtotal(),
+          tax: calculateTax(),
+          total: calculateTotal(),
+          paymentMethod: paymentMethod,
+        }),
       })
+      const data = await response.json()
 
-      if (response.success) {
+      if (data.success) {
         toast({
           title: "Sale completed",
-          description: `Bill #${response.billId} generated successfully`,
+          description: `Bill #${data.billNumber} generated successfully`,
         })
+
+        // Download bill or show success message
+        const downloadUrl = `/api/generate-pdf/${data.billId}`
+        window.open(downloadUrl, '_blank')
 
         // Reset the form
         setScannedItems([])
@@ -144,7 +198,7 @@ export default function BillingPage() {
       } else {
         toast({
           title: "Error completing sale",
-          description: response.error || "An unknown error occurred",
+          description: data.error || "An unknown error occurred",
           variant: "destructive",
         })
       }
@@ -166,31 +220,112 @@ export default function BillingPage() {
         <div className="md:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Scan Items</CardTitle>
-              <CardDescription>Scan QR codes of ornaments to add them to the bill</CardDescription>
+              <CardTitle>Add Items</CardTitle>
+              <CardDescription>Add items to the bill using QR code or select from inventory</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-end gap-2 mb-6">
-                <div className="flex-1">
-                  <Label htmlFor="qr-input">QR Code / Item ID</Label>
-                  <Input
-                    id="qr-input"
-                    value={qrInput}
-                    onChange={(e) => setQrInput(e.target.value)}
-                    placeholder="Scan QR code or enter item ID"
-                    className="mt-1"
-                  />
-                </div>
-                <Button onClick={handleScanQR}>
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Add Item
-                </Button>
-                <Button variant="outline" onClick={() => setShowScanner(true)}>
-                  Scan
-                </Button>
-              </div>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="qr">QR Code</TabsTrigger>
+                  <TabsTrigger value="select">Select Items</TabsTrigger>
+                </TabsList>
 
-              <div className="border rounded-md">
+                <TabsContent value="qr" className="space-y-4">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label htmlFor="qr-input">QR Code / Item ID</Label>
+                      <Input
+                        id="qr-input"
+                        value={qrInput}
+                        onChange={(e) => setQrInput(e.target.value)}
+                        placeholder="Scan QR code or enter item ID"
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button onClick={handleScanQR}>
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Add Item
+                    </Button>
+                    <Dialog open={showScanner} onOpenChange={setShowScanner}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">
+                          Scan
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Scan QR Code</DialogTitle>
+                          <DialogDescription>
+                            Position the QR code within the frame to scan
+                          </DialogDescription>
+                        </DialogHeader>
+                        <QrScanner onScan={handleQrScan} />
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="select" className="space-y-4">
+                  <div>
+                    <Label>Select Item Type</Label>
+                    <Select
+                      value={selectedType}
+                      onValueChange={(value) => {
+                        setSelectedType(value)
+                        handleTypeSelect(value)
+                        setShowTypeSelect(true)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORNAMENT_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {showTypeSelect && typeItems.length > 0 && (
+                    <div>
+                      <Label>Select Item</Label>
+                      <Select
+                        onValueChange={(value) => {
+                          const selectedItem = typeItems.find(
+                            (item) => item.ornamentId === value
+                          )
+                          if (selectedItem) {
+                            setScannedItems([...scannedItems, {
+                              ...selectedItem,
+                              sellingPrice: selectedItem.costPrice * 1.03
+                            }])
+                            toast({
+                              title: "Item added",
+                              description: `${selectedItem.type} (${selectedItem.ornamentId}) added to cart`,
+                            })
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {typeItems.map((item) => (
+                            <SelectItem key={item.ornamentId} value={item.ornamentId}>
+                              {item.ornamentId} - {item.weight}g ({item.purity})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              <div className="border rounded-md mt-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
