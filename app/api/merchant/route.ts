@@ -1,0 +1,1 @@
+createdAt DateTime @default(now())

@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id      Int     @id @default(autoincrement())
+  name    String
+  phone   String  @unique
+  email   String
+  bills   Bill[]
+}
+
+model Ornament {
+  id            Int     @id @default(autoincrement())
+  ornamentId    String  @unique
+  type          String
+  merchantCode  String
+  weight        Float
+  costPrice     Float
+  purity        String
+  qrCode        String?    // PNG stored as binary (blob)
+  isSold        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  billItems     BillItem[]
+  merchant      Merchant  @relation(fields: [merchantCode], references: [merchantCode])
+}
+
+model Merchant {
+  merchantCode String     @id
+  name         String
+  phone        String     @unique
+  createdAt DateTime @default(now())
+  ornaments    Ornament[]
+}
+
+
+model Bill {
+  id           Int         @id @default(autoincrement())
+  clientId     Int
+  totalAmount  Float
+  createdAt    DateTime    @default(now())
+  client       Client      @relation(fields: [clientId], references: [id])
+  billItems    BillItem[]
+}
+
+model BillItem {
+  id           Int         @id @default(autoincrement())
+  billId       Int
+  ornamentId   String
+  sellingPrice Float
+  bill         Bill        @relation(fields: [billId], references: [id])
+  ornament     Ornament    @relation(fields: [ornamentId], references: [ornamentId])
+}
